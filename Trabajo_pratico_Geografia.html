@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Circuito Productivo: Té de Roca de Wuyi</title>
+    <style>
+        /* 全局基础设置 */
+        :root {
+            --glass-bg: rgba(20, 40, 30, 0.45); 
+            --glass-border: rgba(167, 243, 208, 0.3);
+            --text-main: #f0fdf4;
+            --text-accent: #6ee7b7;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { 
+            overflow: hidden; 
+            background-color: #06120b; 
+            color: var(--text-main);
+            height: 100vh;
+        }
+
+        /* 3D 视差背景 */
+        #parallax-bg {
+            position: fixed; top: -5%; left: -5%; width: 110%; height: 110%; z-index: -2;
+            background: linear-gradient(rgba(6, 18, 11, 0.5), rgba(6, 18, 11, 0.3)), 
+                        url('fondo_te.jpg'); 
+            background-size: cover; background-position: center;
+            transition: transform 0.1s ease-out;
+        }
+
+        /* 动态落叶 Canvas */
+        #leavesCanvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none;
+        }
+
+        /* 幻灯片容器 */
+        .slider-container {
+            position: relative; width: 95%; max-width: 1400px; height: 85vh; margin: 4vh auto;
+            perspective: 1500px; 
+        }
+        .slide {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 40px; 
+            padding: 40px 50px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+            opacity: 0; transform: scale(0.9) translateZ(-200px); 
+            transition: all 0.8s cubic-bezier(0.25, 0.8, 0.25, 1);
+            pointer-events: none;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .slide.active { opacity: 1; transform: scale(1) translateZ(0); pointer-events: auto; }
+
+        /* 文本排版 */
+        h1 { font-size: 3.5rem; text-align: center; margin-bottom: 10px; color: #fff; text-shadow: 2px 4px 8px rgba(0,0,0,0.6); }
+        h2 { font-size: 2.2rem; margin-bottom: 20px; color: var(--text-accent); border-left: 6px solid var(--text-accent); padding-left: 15px; }
+        p, li { font-size: 1.15rem; line-height: 1.7; margin-bottom: 12px; text-shadow: 1px 1px 3px rgba(0,0,0,0.5); }
+        .subtitle { text-align: center; font-size: 1.8rem; color: #a7f3d0; margin-bottom: 20px; }
+        
+        /* 布局 */
+        .content-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; width: 100%; }
+        .content-grid-3 { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 20px; width: 100%; }
+
+        /* 3D 交互卡片 */
+        .tilt-card {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px; padding: 20px;
+            transform-style: preserve-3d; transition: transform 0.1s ease-out;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .tilt-card img {
+            width: 100%; height: 260px; object-fit: cover; border-radius: 12px;
+            transform: translateZ(30px); 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        }
+        .img-contain img { object-fit: contain; background: #fff; }
+        
+        /* 所有图片的悬浮效果与指针 */
+        .clickable-img { cursor: pointer; transition: transform 0.3s; }
+        .clickable-img:hover { box-shadow: 0 20px 45px rgba(52, 211, 153, 0.5) !important; transform: translateZ(40px) scale(1.03) !important; }
+
+        /* 致谢团队链接样式 */
+        .credits-link {
+            color: var(--text-accent); text-decoration: none; font-weight: bold; position: relative;
+        }
+        .credits-link::after {
+            content: ''; position: absolute; width: 100%; transform: scaleX(0); height: 2px;
+            bottom: -2px; left: 0; background-color: var(--text-accent);
+            transform-origin: bottom right; transition: transform 0.3s ease-out;
+        }
+        .credits-link:hover::after { transform: scaleX(1); transform-origin: bottom left; }
+        .credits-link:hover { color: #fff; }
+
+        /* 引用框 */
+        .quote-box {
+            background: rgba(0, 0, 0, 0.3); border-radius: 30px; padding: 40px; text-align: center;
+            border: 2px solid var(--text-accent); margin: 0 auto; max-width: 1000px;
+        }
+        .quote-box p { font-size: 1.8rem; line-height: 1.6; color: #fff; font-style: italic; }
+
+        /* 按钮与UI */
+        .next-btn {
+            position: fixed; right: 50px; bottom: 50px;
+            width: 70px; height: 70px; border-radius: 50%;
+            background: linear-gradient(135deg, #10b981, #047857);
+            color: #fff; font-size: 1.5rem; border: none; cursor: pointer;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 50;
+            display: flex; justify-content: center; align-items: center;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .next-btn:hover { transform: scale(1.15) rotate(10deg); }
+
+        .translate-btn {
+            position: fixed; left: 50px; bottom: 50px;
+            padding: 15px 25px; border-radius: 35px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: #fff; font-size: 1.1rem; font-weight: bold; border: none; cursor: pointer;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 50;
+            display: flex; align-items: center; gap: 10px;
+            transition: all 0.3s;
+        }
+        .translate-btn:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(59, 130, 246, 0.6); }
+
+        /* 灯箱 (Modal) */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(10px);
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; z-index: 1000; transition: opacity 0.4s ease;
+        }
+        .modal.show { opacity: 1; pointer-events: auto; }
+        .modal img {
+            max-width: 90%; max-height: 90%; border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6); transform: scale(0.8); transition: transform 0.4s ease;
+        }
+        .modal.show img { transform: scale(1); }
+    </style>
+</head>
+<body>
+
+    <div id="parallax-bg"></div>
+    <canvas id="leavesCanvas"></canvas>
+
+    <div class="slider-container">
+        
+        <div class="slide active">
+            <h1 class="lang-es">El Arte del Té Chino</h1>
+            <h1 class="lang-zh" style="display:none;">中国茶道之美</h1>
+            
+            <p class="subtitle lang-es">Circuito Productivo del Té de Roca (Wuyi)</p>
+            <p class="subtitle lang-zh" style="display:none;">武夷岩茶产业回路</p>
+            
+            <div class="tilt-card" style="width: 50%; margin: 0 auto 20px auto;">
+                <img src="mmexport1778989650485.jpg" class="clickable-img" onclick="openModal(this.src)" style="height: 280px;">
+            </div>
+
+            <div style="text-align: center; font-size: 0.9rem; color: rgba(255,255,255,0.8); line-height: 1.8; background: rgba(0,0,0,0.3); padding: 15px 30px; border-radius: 20px; display: inline-block; margin: 0 auto; border: 1px solid rgba(255,255,255,0.1);">
+                <div class="lang-es">
+                    Soporte Técnico:  <a href="https://github.com/LinHouYu" target="_blank" class="credits-link">zhishifenzi Lin</a><br>
+                    Director General: <b>Leo Weng</b> | Fuentes proporcionadas por: <b>Pablo Huang, Mateo</b><br>
+                    <i>¡Gracias a todo el equipo de producción!</i>
+                </div>
+                <div class="lang-zh" style="display:none;">
+                    技术支持:  <a href="https://github.com/LinHouYu" target="_blank" class="credits-link">zhishifenzi Lin</a><br>
+                    总指挥: <b>Leo Weng</b> | 提供 Source: <b>Pablo Huang, Mateo</b><br>
+                    <i>感谢全部的制作团队！</i>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide">
+            <h2 class="lang-es">1. Materia Prima y Región</h2>
+            <h2 class="lang-zh" style="display:none;">1. 原材料与产区</h2>
+            <div class="content-grid-2">
+                <div class="tilt-card">
+                    <p class="lang-es">Las <b>Montañas Wuyi</b> ofrecen un microclima único. El suelo mineral y la niebla de los bosques de bambú definen el sabor "Yan Yun".</p>
+                    <p class="lang-zh" style="display:none;"><b>武夷山</b>拥有得天独厚的微气候。富含矿物质的土壤与竹林的晨雾共同铸就了独特的“岩韵”。</p>
+                    <p class="lang-es">Se utilizan brotes tiernos y hojas frescas seleccionadas a mano.</p>
+                    <p class="lang-zh" style="display:none;">仅使用纯手工精心挑选的鲜嫩茶芽与茶叶作为原料。</p>
+                </div>
+                <div class="tilt-card img-contain">
+                    <img src="mmexport1778989649222.jpg" class="clickable-img" onclick="openModal(this.src)">
+                </div>
+            </div>
+        </div>
+
+        <div class="slide">
+            <h2 class="lang-es">2. Localización y Puertos de Exportación</h2>
+            <h2 class="lang-zh" style="display:none;">2. 地图定位与出口港口</h2>
+            <div class="content-grid-2">
+                <div class="tilt-card">
+                    <p class="lang-es"><b>Ubicación:</b> Extraído y procesado en la provincia de Fujian. Viaja a los grandes puertos internacionales de <b>Xiamen</b> y <b>Fuzhou</b>.</p>
+                    <p class="lang-zh" style="display:none;"><b>定位与港口：</b>采摘与加工均在福建省。成品茶叶随后通过陆路运输至<b>厦门港</b>和<b>福州港</b>出海。</p>
+                    
+                    <p class="lang-es"><b>Mercados Externos:</b> Se exporta masivamente a <b>Rusia, Japón, Estados Unidos y la Unión Europea</b>.</p>
+                    <p class="lang-zh" style="display:none;"><b>出口市场：</b>除国内消费外，产品还大量出口至<b>俄罗斯、日本、美国及欧盟国家</b>。</p>
+                </div>
+                <div class="tilt-card" style="text-align: center; padding: 15px;">
+                    <iframe
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1847141.52044342!2d117.163339!3d26.079237!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3414909f19669527%3A0xe54e6ff1b4718f6f!2sFujian!5e1!3m2!1sen!2scn!4v1715911364230!5m2!1sen!2scn&maptype=satellite"
+                        style="border:1px solid rgba(255,255,255,0.2); width: 100%; height: 260px; border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.4);"
+                        allowfullscreen=""
+                        loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade">
+                    </iframe>
+                    <p class="lang-es" style="font-size: 0.8rem; margin-top:5px; color:rgba(255,255,255,0.6);">(Vista satelital de la provincia de Fujian y sus montañas rocosas)</p>
+                    <p class="lang-zh" style="display:none; font-size: 0.8rem; margin-top:5px; color:rgba(255,255,255,0.6);">(福建省卫星地图及岩茶产区山脉)</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide">
+            <h2 class="lang-es">3. Procesamiento (Sector Secundario)</h2>
+            <h2 class="lang-zh" style="display:none;">3. 加工制造 (第二产业)</h2>
+            <div class="content-grid-3">
+                <div class="tilt-card img-contain"><img src="mmexport1778989646581.jpg" style="height: 350px;" class="clickable-img" onclick="openModal(this.src)"></div>
+                <div class="tilt-card">
+                    <p class="lang-es">Un proceso tradicional no mecanizado masivamente: marchitado, oxidación (Zuo Qing), enrollado y tostado lento sobre carbón.</p>
+                    <p class="lang-zh" style="display:none;">非大规模机械化的传统工艺：包含萎凋、控氧发酵（做青）、揉捻及炭火慢焙。</p>
+                </div>
+                <div class="tilt-card"><img src="mmexport1778989654574.jpg" style="height: 350px;" class="clickable-img" onclick="openModal(this.src)"></div>
+            </div>
+        </div>
+
+        <div class="slide">
+            <h2 class="lang-es">4. Distribución Comercial (Sector Terciario)</h2>
+            <h2 class="lang-zh" style="display:none;">4. 市场销售与流通 (第三产业)</h2>
+            <div class="content-grid-3">
+                <div class="tilt-card"><img src="mmexport1778989651842.jpg" style="height: 300px;" class="clickable-img" onclick="openModal(this.src)"></div>
+                <div class="tilt-card">
+                    <p class="lang-es"><b>De la montaña al consumidor:</b> El té se distribuye en mercados tradicionales chinos y mediante grandes cadenas modernas. Este sector genera un inmenso impacto económico y empleo indirecto.</p>
+                    <p class="lang-zh" style="display:none;"><b>从茶山到茶杯：</b>产品在传统茶铺及现代连锁店中销售。第三产业创造了巨大的经济效益与间接就业。</p>
+                </div>
+                <div class="tilt-card"><img src="mmexport1778989653385.jpg" style="height: 300px;" class="clickable-img" onclick="openModal(this.src)"></div>
+            </div>
+        </div>
+
+        <div class="slide">
+            <h2 class="lang-es">5. Naturaleza del Producto e Innovación</h2>
+            <h2 class="lang-zh" style="display:none;">5. 产品定位与创新衍生</h2>
+            <div class="content-grid-2">
+                <div class="tilt-card">
+                    <p class="lang-es"><b>¿Commodity o Specialty?:</b> Es un <b>Specialty</b>. Su precio depende del "terroir" y el trabajo artesanal, no cotiza genéricamente en la bolsa.</p>
+                    <p class="lang-zh" style="display:none;"><b>大宗还是精品？</b>属于精品（Specialty）。其价值取决于特定风土与纯手工技艺，不作为大宗商品在交易所定价。</p>
+                    <p class="lang-es" style="margin-top:10px;"><b>Derivados:</b> Té frío embotellado, cosméticos y suplementos de salud (polifenoles).</p>
+                    <p class="lang-zh" style="display:none;"><b>衍生品：</b>即饮冷泡茶饮料、含茶多酚的化妆品与保健品。</p>
+                </div>
+                <div class="tilt-card">
+                    <p class="lang-es"><b>Sector Cuaternario (I+D):</b> Uso de drones agrícolas para monitorear el clima y biotecnología para el estudio genético del té.</p>
+                    <p class="lang-zh" style="display:none;"><b>第四产业科研：</b>包括利用现代农业无人机进行实时气候监测，以及利用生物科技改良茶树基因。</p>
+                    <img src="innovacion_deriva.jpg" style="height: 120px; border: 2px solid var(--glass-border); border-radius: 10px; padding: 5px; margin-top: 10px; background: rgba(0,0,0,0.5);" class="clickable-img" onclick="openModal(this.src)">
+                </div>
+            </div>
+        </div>
+
+        <div class="slide">
+            <h2 class="lang-es" style="font-size: 3rem;">6. Condiciones de los Trabajadores</h2>
+            <h2 class="lang-zh" style="display:none; font-size: 3rem;">6. 工人的工作条件</h2>
+            <div class="content-grid-2">
+                <div class="tilt-card" style="padding: 30px;">
+                    <p class="lang-es" style="font-size: 1.3rem;"><b>Recolectores:</b> Trabajo estacional muy intenso en las montañas durante la primavera. Físicamente agotador.</p>
+                    <p class="lang-zh" style="display:none; font-size: 1.3rem;"><b>采茶工：</b>春季采摘期面临极高强度的山区体力劳作，属于极其辛苦的季节性工作。</p>
+                    <p class="lang-es" style="font-size: 1.3rem; margin-top: 20px;"><b>Maestros Tostadores:</b> Trabajo de alta presión técnica. Deben soportar el calor de las brasas y hacer largos turnos nocturnos para vigilar el fuego.</p>
+                    <p class="lang-zh" style="display:none; font-size: 1.3rem; margin-top: 20px;"><b>制茶师傅：</b>高压技术工种。需要忍受炭火高温，并常常通宵熬夜监控火候变化。</p>
+                </div>
+                <div class="tilt-card" style="text-align: center;">
+                    <img src="trabajadores_te.jpg" style="height: 250px; border: 2px solid var(--glass-border); border-radius: 10px; padding: 5px; background: rgba(0,0,0,0.5);" class="clickable-img" onclick="openModal(this.src)">
+                </div>
+            </div>
+        </div>
+
+        <div class="slide">
+            <h2 class="lang-es" style="font-size: 3rem;">7. Empresas y Cooperativas</h2>
+            <h2 class="lang-zh" style="display:none; font-size: 3rem;">7. 参与的企业或合作社</h2>
+            <div class="content-grid-2">
+                <div class="tilt-card" style="text-align: center;">
+                    <img src="empresas_coop.jpg" style="height: 250px; border: 2px solid var(--glass-border); border-radius: 10px; padding: 5px; background: rgba(0,0,0,0.5);" class="clickable-img" onclick="openModal(this.src)">
+                </div>
+                <div class="tilt-card" style="padding: 30px;">
+                    <p class="lang-es" style="font-size: 1.3rem;"><b>Sistema de Integración:</b> El circuito productivo no está monopolizado por una sola entidad, sino que funciona en red.</p>
+                    <p class="lang-zh" style="display:none; font-size: 1.3rem;"><b>整合系统：</b>生产回路并非由单一实体垄断，而是通过网络协同运作。</p>
+                    <ul style="margin-left: 20px; font-size: 1.2rem; margin-top: 15px;">
+                        <li class="lang-es"><b>Familias Campesinas:</b> Propietarios de las plantaciones.</li>
+                        <li class="lang-zh" style="display:none;"><b>当地农户：</b>茶园的实际拥有者与采摘者。</li>
+                        <li class="lang-es"><b>Cooperativas (ej. Xingcun):</b> Agrupan a los campesinos y centralizan la primera fase.</li>
+                        <li class="lang-zh" style="display:none;"><b>专业合作社 (如星村镇合作社)：</b>将农户组织起来集中初加工。</li>
+                        <li class="lang-es"><b>Empresas Líderes (DaYi, Bama):</b> Dominan el marketing, empaquetado premium y exportación.</li>
+                        <li class="lang-zh" style="display:none;"><b>龙头企业 (如大益、八马)：</b>主导高端包装、品牌营销与出口。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide">
+            <h2 class="lang-es" style="text-align: center; border: none;">Cultura y Calma</h2>
+            <h2 class="lang-zh" style="display:none; text-align: center; border: none;">文化与宁静</h2>
+            <div class="quote-box tilt-card" style="padding: 30px 50px;">
+                <p style="font-size: 1.8rem; line-height: 1.5; margin-bottom: 20px;">
+                    "中国人喝的是闲情雅致，品的是世外桃源。这一杯武夷岩茶，不只是大地的芬芳，更是岁月的沉淀与山水的共鸣。"
+                </p>
+                <p class="lang-es" style="font-size: 1.3rem; color: #a7f3d0; font-style: italic; line-height: 1.5;">
+                    (Traducción: "Los chinos beben la tranquilidad y la elegancia, saboreando un paraíso terrenal. Esta taza de té de roca de Wuyi no es solo la fragancia de la tierra, sino también la esencia del tiempo y la resonancia de las montañas y los ríos.")
+                </p>
+                <p class="lang-es" style="font-size: 1.2rem; margin-top:20px; color: var(--text-accent); font-weight: bold;">— El Espíritu del Té</p>
+                <p class="lang-zh" style="display:none; font-size: 1.2rem; margin-top:20px; color: var(--text-accent); font-weight: bold;">— 茶之精神</p>
+            </div>
+        </div>
+
+        <div class="slide">
+            <h1 class="lang-es" style="font-size: 2.8rem;">¡Muchas Gracias!</h1>
+            <h1 class="lang-zh" style="display:none; font-size: 2.8rem;">非常感谢！</h1>
+            <p class="lang-es" style="text-align: center; font-size: 1.5rem; color: #a7f3d0; margin-bottom: 20px;">Una fusión de culturas: Del mate al té de roca.</p>
+            <p class="lang-zh" style="display:none; text-align: center; font-size: 1.5rem; color: #a7f3d0; margin-bottom: 20px;">文化的交融：从阿根廷马黛茶到中国武夷岩茶。</p>
+            <div class="tilt-card" style="width: 70%; margin: 0 auto; border: 3px solid #10b981;">
+                <img src="messi_ronaldo_tea.jpg" class="clickable-img" onclick="openModal(this.src)" style="height: 400px; object-fit: cover;">
+                <p class="lang-es" style="text-align: center; margin-top: 15px; font-weight: bold; color: #fff;">Fin de la Exposición (Haz clic en la imagen)</p>
+                <p class="lang-zh" style="display:none; text-align: center; margin-top: 15px; font-weight: bold; color: #fff;">展示结束 (点击图片可放大)</p>
+            </div>
+        </div>
+
+    </div>
+
+    <button class="translate-btn" id="translateBtn">
+        <span>🌐 Español / 中文</span>
+    </button>
+    <button class="next-btn" id="nextBtn">➔</button>
+
+    <div class="modal" id="imageModal" onclick="closeModal()">
+        <img id="modalImg" src="" alt="Imagen ampliada">
+    </div>
+
+    <script>
+        const bg = document.getElementById('parallax-bg');
+        window.addEventListener('mousemove', (e) => {
+            const x = (e.clientX / window.innerWidth - 0.5) * 40; 
+            const y = (e.clientY / window.innerHeight - 0.5) * 40;
+            bg.style.transform = `translate(${-x}px, ${-y}px) scale(1.05)`;
+        });
+
+        const tiltCards = document.querySelectorAll('.tilt-card');
+        tiltCards.forEach(card => {
+            card.addEventListener('mousemove', e => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left - rect.width / 2;
+                const y = e.clientY - rect.top - rect.height / 2;
+                card.style.transform = `perspective(1000px) rotateX(${-y/10}deg) rotateY(${x/10}deg) scale3d(1.02, 1.02, 1.02)`;
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.transform = `perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)`;
+            });
+        });
+
+        const slides = document.querySelectorAll('.slide');
+        const nextBtn = document.getElementById('nextBtn');
+        let currentSlide = 0;
+
+        nextBtn.addEventListener('click', () => {
+            slides[currentSlide].classList.remove('active');
+            currentSlide = (currentSlide + 1) % slides.length;
+            slides[currentSlide].classList.add('active');
+            nextBtn.innerHTML = (currentSlide === slides.length - 1) ? "↺" : "➔";
+        });
+
+        const canvas = document.getElementById('leavesCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const leaves = [];
+        for(let i=0; i<40; i++) {
+            leaves.push({
+                x: Math.random()*canvas.width, y: Math.random()*canvas.height,
+                s: Math.random()*1.5+0.5, a: Math.random()*360, sp: Math.random()*0.02
+            });
+        }
+        function draw() {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            leaves.forEach(l => {
+                l.y += l.s; l.x += Math.sin(l.y*0.01); l.a += l.sp;
+                if(l.y > canvas.height) l.y = -20;
+                ctx.save(); ctx.translate(l.x, l.y); ctx.rotate(l.a);
+                ctx.fillStyle = 'rgba(167, 243, 208, 0.4)';
+                ctx.beginPath(); ctx.ellipse(0,0,10,3,0,0,Math.PI*2); ctx.fill();
+                ctx.restore();
+            });
+            requestAnimationFrame(draw);
+        }
+        draw();
+
+        let isChinese = false;
+        const translateBtn = document.getElementById('translateBtn');
+        const esElements = document.querySelectorAll('.lang-es');
+        const zhElements = document.querySelectorAll('.lang-zh');
+
+        translateBtn.addEventListener('click', () => {
+            isChinese = !isChinese;
+            esElements.forEach(el => el.style.display = isChinese ? 'none' : '');
+            zhElements.forEach(el => el.style.display = isChinese ? '' : 'none');
+        });
+
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImg');
+
+        function openModal(imageSrc) {
+            modalImg.src = imageSrc;
+            modal.classList.add('show');
+        }
+
+        function closeModal() {
+            modal.classList.remove('show');
+            setTimeout(() => { modalImg.src = ''; }, 400);
+        }
+    </script>
+</body>
+</html>
