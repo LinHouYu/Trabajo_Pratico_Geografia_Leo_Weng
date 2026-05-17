@@ -1,7 +1,7 @@
 # 🍵 Circuito Productivo: Té de Roca de Wuyi 
 *(Wuyi Rock Tea Productive Circuit / 武夷岩茶产业回路)*
 
-✨ **[👉 ¡Haz clic aquí para ver la presentación web interactiva! | 点击这里查看互动网页展示 | Click here to view the live site! 👈]([https://linhouyu.github.io/Trabajo_Pratico_Geografia_Leo_Weng/](https://linhouyu.github.io/Trabajo_Pratico_Geografia_Leo_Weng/index.html))** ✨
+✨ **[👉 ¡Haz clic aquí para ver la presentación web interactiva! | 点击这里查看互动网页展示 | Click here to view the live site! 👈](https://linhouyu.github.io/Trabajo_Pratico_Geografia_Leo_Weng/index.html)** ✨
 
 ---
 
